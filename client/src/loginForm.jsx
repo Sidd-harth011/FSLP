@@ -1,17 +1,6 @@
-import React from 'react';
-import { useState } from 'react';
-
-function locationfind(){
-  fetch('https://ipinfo.io/json?token=3889ac530c8876').then(res => res.json()).then(data => {
-    const loc = data.loc.split(',');
-    console.log('Approximate Latitude:', loc[0]);
-    console.log('Approximate Longitude:', loc[1]);
-    return { lat: loc[0], lon: loc[1] };
-  })
-}
-
+import React, { useState } from 'react';
 export default function FormPage() {
-  const [location, setLocation] = useState({lat:-1.000000, lon:-1.000000}); // Initialize location state
+  const [location, setLocation] = useState({ lat: -1.0, lon: -1.0 });
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -22,15 +11,41 @@ export default function FormPage() {
     age: '',
     about: '',
     gender: '',
-  })
+  });
 
-  const handleSubmit = (e) => {
+  const getLocation = async () => {
+    try {
+      const res = await fetch('https://ipinfo.io/json?token=3889ac530c8876');
+      const data = await res.json();
+      const [lat, lon] = data.loc.split(',');
+      return { lat, lon };
+    } catch (error) {
+      console.error('Failed to get location:', error);
+      return { lat: 'N/A', lon: 'N/A' };
+    }
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    console.log(formData);
-     // send to server, etc.
+    const currentLocation = await getLocation(); // get coordinates
+    setLocation(currentLocation); // set in state
 
-    setFormData({ name: '', email: '', password: '', phone: '', address: '', profession: '', age: '', about: '', gender: '' }); // Reset form after submission
+    console.log('Form Data:', formData);
+    console.log('Location:', currentLocation);
+
+    setFormData({
+      name: '',
+      email: '',
+      password: '',
+      phone: '',
+      address: '',
+      profession: '',
+      age: '',
+      about: '',
+      gender: '',
+    });
+
     alert('Form submitted successfully!');
   };
 
@@ -252,3 +267,14 @@ export default function FormPage() {
     </div>
   )
 }
+ /*
+ require('dotenv').config();
+fetch(`https://ipinfo.io/json?token=` + process.env.IPINFO_TOKEN)
+  .then(res => res.json())
+  .then(data => {
+    const loc = data.loc.split(',');
+    console.log('Approximate Latitude:', loc[0]);
+    console.log('Approximate Longitude:', loc[1]);
+  });
+
+ */
