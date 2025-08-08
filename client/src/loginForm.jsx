@@ -1,6 +1,17 @@
 import React from 'react';
 import { useState } from 'react';
+
+function locationfind(){
+  fetch('https://ipinfo.io/json?token=3889ac530c8876').then(res => res.json()).then(data => {
+    const loc = data.loc.split(',');
+    console.log('Approximate Latitude:', loc[0]);
+    console.log('Approximate Longitude:', loc[1]);
+    return { lat: loc[0], lon: loc[1] };
+  })
+}
+
 export default function FormPage() {
+  const [location, setLocation] = useState({lat:-1.000000, lon:-1.000000}); // Initialize location state
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -15,8 +26,12 @@ export default function FormPage() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
     console.log(formData);
      // send to server, etc.
+
+    setFormData({ name: '', email: '', password: '', phone: '', address: '', profession: '', age: '', about: '', gender: '' }); // Reset form after submission
+    alert('Form submitted successfully!');
   };
 
   const handleChange = (e) => {
