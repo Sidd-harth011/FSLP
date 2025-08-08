@@ -34,6 +34,22 @@ export default function FormPage() {
     console.log('Form Data:', formData);
     console.log('Location:', currentLocation);
 
+    try{
+      const response = await fetch('http://localhost:5000/api/formdata', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ...formData, location: currentLocation }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+    } catch (error) {
+      console.error('Error submitting form:', error);
+    }
+
     setFormData({
       name: '',
       email: '',
@@ -46,7 +62,7 @@ export default function FormPage() {
       gender: '',
     });
 
-    alert('Form submitted successfully!');
+    //alert('Form submitted successfully!');
   };
 
   const handleChange = (e) => {
