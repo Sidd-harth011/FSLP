@@ -1,14 +1,20 @@
-//import { useState } from 'react'
-//import reactLogo from './assets/react.svg'
-//import viteLogo from '/vite.svg'
-import './App.css'
-import FormPage from './loginForm'
+import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import './App.css';
+import FormPage from './loginForm';
+import VerificationPage from './verificationPage';
+import { UserProvider } from './useContext';
+
 function App() {
   return (
-    <>
-      <FormPage />
-    </>
-  )
+    <UserProvider>
+      <Router>
+        <Routes>
+          <Route path="/" element={<FormPage />} />
+          <Route path="/verification" element={<VerificationPage />} />
+        </Routes>
+      </Router>
+    </UserProvider>
+  );
 }
 
-export default App
+export default App;
