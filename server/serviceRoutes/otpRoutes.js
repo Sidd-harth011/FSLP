@@ -3,37 +3,72 @@ const express = require('express');
 const router = express.Router();
 const { sendEmail } = require('./emaSend');
 const { sendSms } = require('./otpSend');
+const axios = require("axios");
 
 router.post('/send-otp', async (req, res) => {
   const { email, phone } = req.body;
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
   try {
-    // Send Email
+    // 1. Send Email
     await sendEmail(email, 'Your OTP Code', `Your OTP is ${otp}`);
 
-    // Send SMS
+    // 2. Send SMS
     await sendSms(phone, `Your OTP code is ${otp}`);
 
-    // success
-    return res.json({ success: true, message: 'OTP sent successfully!', redirect: '/verification' });
+    // 3. Send OTP to external API
+    const apiResponse = await axios.post('http://localhost:5000/api/store-otp', {
+      otp,           // the OTP we generated
+      expiresIn:300,
+    });
+
+    console.log("API Response:", apiResponse.data);
+
+    // 4. Success response to frontend
+    return res.json({
+      success: true,
+      message: 'OTP sent successfully!',
+      redirect: '/verification',
+      otpApiStatus: apiResponse.data // forward API's response to frontend if needed
+    });
+
   } catch (err) {
-    console.error('OTP send error:', err);
+  console.error('OTP send error:', err);
 
-    // Robust-ish classification:
-    // Twilio errors usually include numeric `code` property
-    if (err && typeof err.code === 'number') {
-      // Twilio error
-      return res.status(500).json({ success: false, redirect: '/wrongphone' });
-    }
+  // 1️⃣ Wrong phone number (Twilio SMS error)
+  if (
+    err?.code === 21408 ||                              // Twilio region restriction
+    (typeof err?.code === 'number' && err?.status === 400) || 
+    (err?.message && err.message.includes('Permission to send an SMS'))
+  ) {
+    return res.status(500).json({
+      success: false,
+      errorType: 'phone',
+      redirect: '/wrongphone',
+      message: 'Invalid or unsupported phone number for SMS.'
+    });
+  }
 
-    // Nodemailer or SMTP errors often don't have numeric code like Twilio; check message
-    if (err && err.message && /auth|invalid|login|ENOTFOUND|EENVELOPE/i.test(err.message)) {
-      return res.status(500).json({ success: false, redirect: '/wrongemail' });
-    }
+  // 2️⃣ Wrong email address (Nodemailer error)
+  if (
+    err?.code === 'EENVELOPE' ||                        // No recipient or invalid address
+    (err?.message && err.message.includes('No recipients defined'))
+  ) {
+    return res.status(500).json({
+      success: false,
+      errorType: 'email',
+      redirect: '/wrongemail',
+      message: 'Invalid recipient email address.'
+    });
+  }
 
-    // fallback
-    return res.status(500).json({ success: false, redirect: '/error' });
+  // 3️⃣ Fallback: Unknown error
+  return res.status(500).json({
+    success: false,
+    errorType: 'unknown',
+    redirect: '/error',
+    message: 'Unexpected error while sending OTP.'
+  });
   }
 });
 

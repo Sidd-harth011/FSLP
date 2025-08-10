@@ -10,7 +10,7 @@ const transporter = nodemailer.createTransport({
 
 const mailOptions = {
   from: 'siddharthgautam573@gmail.com',
-  to: 'kerisgautam@gmail.com',
+  to: 'kerisgautamgmail.com',
   subject: '505050',
   text: 'Your OTP is 123456',
 };

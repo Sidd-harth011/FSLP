@@ -6,6 +6,7 @@ import { UserProvider } from './useContext';
 import ErrorPage from './error';
 import WrongEmail from './wrongEmail';
 import WrongPhone from './wrongPhone';
+import SuccessPage from './successPage';
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
           <Route path="/wrongemail" element={<WrongEmail />} />
           <Route path="/wrongphone" element={<WrongPhone />} />
           <Route path="/error" element={<ErrorPage />} />
+          <Route path="/success" element={<SuccessPage />} />
         </Routes>
       </Router>
     </UserProvider>
