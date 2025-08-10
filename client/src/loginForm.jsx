@@ -37,15 +37,35 @@ export default function FormPage() {
     const currentLocation = await getLocation();
     setLocalLocation(currentLocation);
 
-    console.log('Form Data:', formData);
-    console.log('Location:', currentLocation);
+    console.log('Form Data (local):', formData);
+    console.log('Location (local):', currentLocation);
 
-    // Set global context first
+    // set global context
     setFormData(formData);
     setLocation(currentLocation);
 
-    // Then navigate
-    navigate('/verification');
+    // send OTP request to backend
+    try {
+      const res = await fetch("http://localhost:5000/api/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: formData.email, phone: formData.phone }),
+      });
+
+      const result = await res.json();
+
+      if (!result.success) {
+        // navigate to whatever the backend suggested
+        navigate(result.redirect);
+      } else {
+        // success
+        // result.redirect may contain '/verification' already, but handle both
+        navigate(result.redirect || '/verification');
+      }
+    } catch (err) {
+      console.error('Request failed:', err);
+      navigate('/error');
+    }
 
     // Clear local form
     setLocalFormData({
@@ -88,7 +108,7 @@ export default function FormPage() {
 
           <div className="p-6 flex-1 overflow-hidden">
             <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-full">
-              
+
               {/* Left Column */}
               <div className="space-y-4">
                 {/* Name */}
@@ -126,7 +146,7 @@ export default function FormPage() {
                   <label htmlFor="phone" className="block text-gray-700 font-medium text-sm">Phone Number</label>
                   <input
                     id="phone"
-                    type="number"
+                    type="tel"
                     required
                     name="phone"
                     onChange={handleChange}
