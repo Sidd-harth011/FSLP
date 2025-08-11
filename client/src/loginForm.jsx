@@ -1,10 +1,11 @@
+// client/src/loginForm.jsx
 import React, { useState, useContext } from 'react';
 import { UserContext } from './useContext';
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from 'react-router-dom';
 
 export default function FormPage() {
-  const [location, setLocalLocation] = useState({ lat: -1.0, lon: -1.0 });
-  const [formData, setLocalFormData] = useState({
+  const { setFormData: setGlobalFormData, setLocation: setGlobalLocation } = useContext(UserContext);
+  const [localData, setLocalData] = useState({
     name: '',
     email: '',
     password: '',
@@ -17,58 +18,55 @@ export default function FormPage() {
   });
 
   const navigate = useNavigate();
-  const { setFormData, setLocation } = useContext(UserContext);
 
   const getLocation = async () => {
     try {
       const res = await fetch('https://ipinfo.io/json?token=3889ac530c8876');
       const data = await res.json();
-      const [lat, lon] = data.loc.split(',');
-      return { lat, lon };
+      const [latStr, lonStr] = data.loc.split(',');
+      return { lat: Number(latStr), lon: Number(lonStr) };
     } catch (error) {
       console.error('Failed to get location:', error);
-      return { lat: 'N/A', lon: 'N/A' };
+      return { lat: null, lon: null };
     }
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setLocalData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     const currentLocation = await getLocation();
-    setLocalLocation(currentLocation);
 
-    console.log('Form Data (local):', formData);
-    console.log('Location (local):', currentLocation);
+    // Save to context
+    setGlobalFormData(localData);
+    setGlobalLocation(currentLocation);
 
-    // set global context
-    setFormData(formData);
-    setLocation(currentLocation);
-
-    // send OTP request to backend
+    // Call backend to send OTP
     try {
-      const res = await fetch("http://localhost:5000/api/send-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: formData.email, phone: formData.phone }),
+      const res = await fetch('http://localhost:5000/api/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: localData.email, phone: localData.phone })
       });
-
       const result = await res.json();
 
       if (!result.success) {
-        // navigate to whatever the backend suggested
-        navigate(result.redirect);
+        navigate(result.redirect || '/error');
       } else {
-        // success
-        // result.redirect may contain '/verification' already, but handle both
+        // If backend returns OTP in dev mode it might include result.otp
         navigate(result.redirect || '/verification');
       }
     } catch (err) {
-      console.error('Request failed:', err);
+      console.error('send-otp failed', err);
       navigate('/error');
     }
 
-    // Clear local form
-    setLocalFormData({
+    // clear local form (but keep global context)
+    setLocalData({
       name: '',
       email: '',
       password: '',
@@ -79,14 +77,6 @@ export default function FormPage() {
       about: '',
       gender: '',
     });
-  };
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setLocalFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
   };
 
   return (
@@ -120,7 +110,7 @@ export default function FormPage() {
                     required
                     name="name"
                     onChange={handleChange}
-                    value={formData.name}
+                    value={localData.name}
                     placeholder="Enter your full name"
                     className="w-full border-2 border-purple-200 focus:border-purple-500 h-10 px-3 rounded-md"
                   />
@@ -135,7 +125,7 @@ export default function FormPage() {
                     required
                     name="email"
                     onChange={handleChange}
-                    value={formData.email}
+                    value={localData.email}
                     placeholder="your.email@example.com"
                     className="w-full border-2 border-blue-200 focus:border-blue-500 h-10 px-3 rounded-md"
                   />
@@ -150,7 +140,7 @@ export default function FormPage() {
                     required
                     name="phone"
                     onChange={handleChange}
-                    value={formData.phone}
+                    value={localData.phone}
                     placeholder="+1 (555) 123-4567"
                     className="w-full border-2 border-green-200 focus:border-green-500 h-10 px-3 rounded-md"
                   />
@@ -168,7 +158,7 @@ export default function FormPage() {
                     required
                     name="password"
                     onChange={handleChange}
-                    value={formData.password}
+                    value={localData.password}
                     minLength="6"
                     placeholder="Create a secure password"
                     className="w-full border-2 border-red-200 focus:border-green-500 h-10 px-3 rounded-md"
@@ -183,7 +173,7 @@ export default function FormPage() {
                     type="text"
                     name="profession"
                     onChange={handleChange}
-                    value={formData.profession}
+                    value={localData.profession}
                     placeholder="e.g., Software Engineer"
                     className="w-full border-2 border-teal-200 focus:border-teal-500 h-10 px-3 rounded-md"
                   />
@@ -197,7 +187,7 @@ export default function FormPage() {
                     type="number"
                     name="age"
                     onChange={handleChange}
-                    value={formData.age}
+                    value={localData.age}
                     min="14"
                     max="120"
                     placeholder="25"
@@ -211,7 +201,7 @@ export default function FormPage() {
                   <select
                     id="gender"
                     name="gender"
-                    value={formData.gender}
+                    value={localData.gender}
                     onChange={handleChange}
                     className="w-full border-2 border-indigo-200 focus:border-indigo-500 h-10 px-3 rounded-md"
                   >
@@ -231,7 +221,7 @@ export default function FormPage() {
                   <textarea
                     name="address"
                     onChange={handleChange}
-                    value={formData.address}
+                    value={localData.address}
                     id="address"
                     placeholder="Enter your complete address"
                     className="w-full border-2 border-orange-200 focus:border-orange-500 px-3 py-2 rounded-md h-20 resize-none"
@@ -245,7 +235,7 @@ export default function FormPage() {
                     id="review"
                     name="about"
                     onChange={handleChange}
-                    value={formData.about}
+                    value={localData.about}
                     placeholder="Share your thoughts, experiences..."
                     className="w-full border-2 border-violet-200 focus:border-violet-500 px-3 py-2 rounded-md resize-none flex-1"
                     maxLength="500"

@@ -1,14 +1,14 @@
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
-import './App.css';
+// client/src/App.jsx
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { UserProvider } from './useContext';
 import FormPage from './loginForm';
 import VerificationPage from './verificationPage';
-import { UserProvider } from './useContext';
-import ErrorPage from './error';
 import WrongEmail from './wrongEmail';
 import WrongPhone from './wrongPhone';
+import ErrorPage from './error';
 import SuccessPage from './successPage';
-
-function App() {
+import './App.css';
+export default function App() {
   return (
     <UserProvider>
       <Router>
@@ -24,5 +24,3 @@ function App() {
     </UserProvider>
   );
 }
-
-export default App;

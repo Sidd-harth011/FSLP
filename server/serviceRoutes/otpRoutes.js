@@ -1,75 +1,94 @@
-// serviceRoutes/otpRoutes.js
+// server/serviceRoutes/otpRoutes.js
 const express = require('express');
 const router = express.Router();
 const { sendEmail } = require('./emaSend');
 const { sendSms } = require('./otpSend');
-const axios = require("axios");
+const axios = require('axios');
 
+// In-memory OTP store for demo/testing.
+// Structure: { "<email-or-phone-key>": { otp: "123456", expiresAt: 1234567890 } }
+// NOTE: For production replace with DB or Redis.
+const otpStore = new Map();
+
+function storeOtpForKey(key, otp, ttlSeconds = 300) {
+  const expiresAt = Date.now() + ttlSeconds * 1000;
+  otpStore.set(key, { otp, expiresAt });
+}
+
+function getStoredOtpForKey(key) {
+  const record = otpStore.get(key);
+  if (!record) return null;
+  if (Date.now() > record.expiresAt) {
+    otpStore.delete(key);
+    return null;
+  }
+  return record.otp;
+}
+
+// POST /api/send-otp
+// body: { email, phone }
 router.post('/send-otp', async (req, res) => {
   const { email, phone } = req.body;
+  if (!email || !phone) {
+    return res.status(400).json({ success: false, message: 'Missing email or phone' });
+  }
+
+  // Generate OTP once
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
   try {
-    // 1. Send Email
+    // Send email (don't await too long if you want parallel — but await to catch errors)
     await sendEmail(email, 'Your OTP Code', `Your OTP is ${otp}`);
 
-    // 2. Send SMS
+    // Send SMS
     await sendSms(phone, `Your OTP code is ${otp}`);
 
-    // 3. Send OTP to external API
-    const apiResponse = await axios.post('http://localhost:5000/api/store-otp', {
-      otp,           // the OTP we generated
-      expiresIn:300,
-    });
+    // Store per-user OTP keyed by email (you can also key by phone)
+    storeOtpForKey(email, otp, 300); // 5 minutes TTL
+    // Optionally store by phone as well:
+    storeOtpForKey(phone, otp, 300);
 
-    console.log("API Response:", apiResponse.data);
+    // Optionally forward OTP to other internal API: (uncomment to use)
+    // await axios.post('http://localhost:5000/api/store-otp', { otp, email, phone, expiresIn: 300 });
 
-    // 4. Success response to frontend
-    return res.json({
+    // Return success. For local testing we'll include the OTP only when not in production.
+    const resp = {
       success: true,
       message: 'OTP sent successfully!',
-      redirect: '/verification',
-      otpApiStatus: apiResponse.data // forward API's response to frontend if needed
-    });
+      redirect: '/verification'
+    };
+    if (process.env.NODE_ENV !== 'production') {
+      resp.otp = otp; // for local dev/testing only
+    }
 
+    return res.json(resp);
   } catch (err) {
-  console.error('OTP send error:', err);
+    console.error('OTP send error:', err);
 
-  // 1️⃣ Wrong phone number (Twilio SMS error)
-  if (
-    err?.code === 21408 ||                              // Twilio region restriction
-    (typeof err?.code === 'number' && err?.status === 400) || 
-    (err?.message && err.message.includes('Permission to send an SMS'))
-  ) {
+    // Generic failure (do not reveal internal details to client)
     return res.status(500).json({
       success: false,
-      errorType: 'phone',
-      redirect: '/wrongphone',
-      message: 'Invalid or unsupported phone number for SMS.'
+      message: 'Failed to send OTP. Please try again later.',
+      redirect: '/error'
     });
   }
+});
 
-  // 2️⃣ Wrong email address (Nodemailer error)
-  if (
-    err?.code === 'EENVELOPE' ||                        // No recipient or invalid address
-    (err?.message && err.message.includes('No recipients defined'))
-  ) {
-    return res.status(500).json({
-      success: false,
-      errorType: 'email',
-      redirect: '/wrongemail',
-      message: 'Invalid recipient email address.'
-    });
+// GET /api/get-otp?key=<email-or-phone>
+// For testing: returns stored OTP for given key (email or phone). Only for dev.
+router.get('/get-otp', (req, res) => {
+  const key = req.query.key; // e.g. ?key=user@example.com or ?key=+911234567890
+  if (!key) {
+    return res.status(400).json({ success: false, message: 'Missing key query param' });
   }
-
-  // 3️⃣ Fallback: Unknown error
-  return res.status(500).json({
-    success: false,
-    errorType: 'unknown',
-    redirect: '/error',
-    message: 'Unexpected error while sending OTP.'
-  });
+  const otp = getStoredOtpForKey(key);
+  if (!otp) {
+    return res.status(404).json({ success: false, message: 'OTP not found or expired' });
   }
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(403).json({ success: false, message: 'Not allowed in production' });
+  }
+  return res.json({ success: true, otp });
 });
 
 module.exports = router;

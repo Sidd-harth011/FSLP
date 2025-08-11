@@ -1,90 +1,82 @@
+// client/src/verificationPage.jsx
 import React, { useContext, useState } from 'react';
 import { UserContext } from './useContext';
 import { useNavigate } from 'react-router-dom';
 
-async function getotp() {
+async function getOtpForKey(key) {
   try {
-    const res = await fetch("http://localhost:5000/api/store-otp"); // This endpoint must return { otp: "123456" }
+    const url = `http://localhost:5000/api/get-otp?key=${encodeURIComponent(key)}`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      const body = await res.json().catch(()=>({}));
+      throw new Error(body.message || 'Failed to fetch OTP');
+    }
     const data = await res.json();
-    console.log("Fetched OTP:", data.otp);
     return data.otp;
   } catch (err) {
-    console.error(err.message);
+    console.error('getOtpForKey error:', err);
+    return null;
   }
 }
 
-function VerificationPage() {
-  const { formData, location } = useContext(UserContext); // now including location
-  const [otp, setOtp] = useState('');
+export default function VerificationPage() {
+  const { formData, location } = useContext(UserContext);
+  const [otpInput, setOtpInput] = useState('');
   const navigate = useNavigate();
-
-  const handleChange = (e) => {
-    setOtp(e.target.value);
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const storedOtp = await getotp();
-    if (otp === storedOtp) {
-      alert("OTP verified successfully!");
+    // We'll look up OTP by email (key). If you used phone key, use phone.
+    const key = formData.email || formData.phone;
+    if (!key) {
+      alert('No email/phone available for OTP lookup');
+      return;
+    }
 
-      // Send formData + location to backend
+    const storedOtp = await getOtpForKey(key);
+    if (!storedOtp) {
+      alert('No OTP found or expired');
+      return;
+    }
+
+    if (otpInput === storedOtp) {
+      // Verified — now send formData + location to backend to save
       try {
-        const res = await fetch("http://localhost:5000/api/save-data", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            formData,
-            location
-          })
+        const res = await fetch('http://localhost:5000/api/save-data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ formData, location })
         });
-
         const result = await res.json();
         if (result.success) {
-          alert("Data saved successfully!");
+          alert('Data saved successfully');
           navigate('/success');
         } else {
-          alert("Failed to save data: " + result.message);
+          alert('Failed to save data: ' + (result.message || 'Unknown'));
         }
-      } catch (error) {
-        console.error("Error saving data:", error);
-        alert("An error occurred while saving data.");
+      } catch (err) {
+        console.error('Save data error:', err);
+        alert('Error saving data');
       }
-
     } else {
-      alert("Invalid OTP. Please try again.");
+      alert('Invalid OTP. Please try again.');
     }
   };
 
   return (
-    <div className="flex items-center justify-center h-screen bg-gradient-to-r from-black to-orange-500">
-  <form
-    onSubmit={handleSubmit}
-    className="bg-white p-8 rounded-xl shadow-lg flex flex-col items-center w-80"
-  >
-    <h1 className="mb-6 text-gray-800 text-2xl font-semibold">
-      Verification Page
-    </h1>
-
-    <input
-      onChange={handleChange}
-      value={otp}
-      type="text"
-      placeholder="Enter OTP"
-      className="mb-4 p-2 text-lg border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-indigo-400"
-    />
-
-    <button
-      type="submit"
-      className="bg-indigo-500 text-white py-2 px-4 rounded-md text-lg font-medium hover:bg-indigo-600 transition duration-200"
-    >
-      Verify
-    </button>
-  </form>
-</div>
-
+    <div className="flex items-center justify-center h-screen bg-gradient-to-r from-indigo-400 to-purple-500">
+      <form onSubmit={handleSubmit} className="bg-white p-8 rounded-xl shadow-lg w-96">
+        <h1 className="text-2xl font-semibold mb-4">Verification Page</h1>
+        <input
+          value={otpInput}
+          onChange={(e) => setOtpInput(e.target.value)}
+          type="text"
+          placeholder="Enter OTP"
+          className="w-full p-2 border rounded mb-4"
+        />
+        <button type="submit" className="w-full bg-indigo-600 text-white py-2 rounded">Verify</button>
+      </form>
+    </div>
   );
 }
-
-export default VerificationPage;

@@ -1,9 +1,9 @@
-// emaSend.js
-const nodemailer = require("nodemailer");
-require("dotenv").config();
+// server/serviceRoutes/emaSend.js
+const nodemailer = require('nodemailer');
+require('dotenv').config();
 
 const transporter = nodemailer.createTransport({
-  service: "gmail",
+  service: 'gmail',
   auth: {
     user: process.env.EMAIL,
     pass: process.env.EMAIL_APP_PASSWORD,

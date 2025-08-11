@@ -1,9 +1,10 @@
-import { createContext, useState } from "react";
+// client/src/useContext.jsx
+import React, { createContext, useState } from 'react';
 
 export const UserContext = createContext();
 
 export function UserProvider({ children }) {
-  const [location, setLocation] = useState({ lat: -1.0, lon: -1.0 });
+  const [location, setLocation] = useState({ lat: null, lon: null });
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -11,7 +12,7 @@ export function UserProvider({ children }) {
     phone: '',
     address: '',
     profession: '',
-    age: '',
+    age: null,
     about: '',
     gender: '',
   });

@@ -1,72 +1,23 @@
+// server/models/Users.js
 const mongoose = require('mongoose');
+
+const locationSchema = new mongoose.Schema({
+  lat: { type: Number, required: false },
+  lon: { type: Number, required: false },
+}, { _id: false });
+
 const userSchema = new mongoose.Schema({
-    name:{
-        type: String,
-        required: true,
-        trim: true,
-        uppercase: true,
-    },
-    email:{
-        type: String,
-        required:true,
-        trim:true,
-        unique: true,
-        lowercase: true,
-    },
-    password:{
-        type: String,
-        required: true,
-        trim: true,
-        select: false, // Exclude password from queries by default
-    },
-    phone:{
-        type: String,
-        required: true,
-        trim: true,
-        unique: true,
-    },
-    address:{
-        type:String,
-        required:false,
-        trim: true,
-        default: 'Not provided',
-        unique:false,
-    },
-    profession:{
-        type: String,
-        required: false,
-        trim: true,
-        default: 'Not specified',
-        unique: false,
-    },
-    age:{
-        type: Number,
-        required: false,
-        max: 200,
-        default: null, // Allow null for age if not specified
-    },
-    gender:{
-        type: String,
-        required: false,
-        enum:["male","female","others"],
-        default: "Not Specified",
-    },
-    location: {
-        lat: {
-            type: Number,
-            required: true,
-        },
-        lon: {
-            type: Number,
-            required: true,
-        }
-    },
-    about:{
-        type: Object,
-        required: false,
-        trim: true,
-        default: 'No review provided',
-    }
-})
+  name: { type: String, required: true, unique: false, trim: true },
+  email: { type: String, required: true, unique: false, trim: true, lowercase: true },
+  password: { type: String, unique: false, required: false }, // you may mark required true if you need
+  phone: { type: String, unique: false, required: false },
+  address: { type: String, unique: false, required: false },
+  profession: { type: String, unique: false, required: false },
+  age: { type: Number, unique: false, required: false },
+  gender: { type: String, unique: false, required: false },
+  location: { type: locationSchema, unique: false, required: false },
+  about: { type: String, unique: false, required: false, default: '' },
+}, { timestamps: true });
+
 const User = mongoose.model('User', userSchema);
 module.exports = User;
